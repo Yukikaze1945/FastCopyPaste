@@ -5,6 +5,7 @@ namespace FastCopyPaste.Host;
 internal sealed class HostApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
+    private readonly Icon _applicationIcon;
     private readonly ToolStripMenuItem _toggleItem;
     private readonly ToolStripMenuItem _hotkeyItem;
     private readonly AppSettings _settings;
@@ -44,9 +45,10 @@ internal sealed class HostApplicationContext : ApplicationContext
             exitItem
         ]);
 
+        _applicationIcon = LoadApplicationIcon();
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = _applicationIcon,
             Text = "FastCopy 粘贴",
             ContextMenuStrip = menu,
             Visible = true
@@ -210,6 +212,21 @@ internal sealed class HostApplicationContext : ApplicationContext
 
     private void ExitApplication(object? sender, EventArgs args) => ExitThread();
 
+    private static Icon LoadApplicationIcon()
+    {
+        var executablePath = Application.ExecutablePath;
+        if (!string.IsNullOrWhiteSpace(executablePath))
+        {
+            var icon = Icon.ExtractAssociatedIcon(executablePath);
+            if (icon is not null)
+            {
+                return icon;
+            }
+        }
+
+        return (Icon)SystemIcons.Application.Clone();
+    }
+
     protected override void ExitThreadCore()
     {
         _log.Info("Host stopping.");
@@ -217,6 +234,7 @@ internal sealed class HostApplicationContext : ApplicationContext
         _keyboardHook.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _applicationIcon.Dispose();
         base.ExitThreadCore();
     }
 }
