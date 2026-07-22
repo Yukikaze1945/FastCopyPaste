@@ -1,0 +1,9 @@
+# Remove the duplicate Explorer paste menu
+
+FastCopy already provides its own Explorer context-menu integration, so FastCopy Paste will stop registering a second “FastCopy 粘贴到这里” command. The application will focus on its distinct feature: replacing a configurable Explorer file-paste shortcut while preserving the native clipboard workflow and applying the existing path, conflict, queue, and clipboard-safety checks.
+
+The native `IExplorerCommand` DLL and sparse MSIX manifest exist only to expose the duplicate menu. They will be removed from the solution, build, and release payload. The current-user installer will continue to remove the legacy `FastCopyPaste` package before updating files, which cleans up the old menu during an upgrade. The uninstaller will retain the same package-removal step so it can also clean installations from versions 1.2.0 and earlier. No FastCopy files or FastCopy’s own menu registration will be changed.
+
+The Host’s `--paste-target` command and current-user named pipe will remain as an internal automation and integration-test entry point. Keeping it avoids coupling automated copy/move verification to keyboard injection and preserves a useful non-Shell invocation path, while no longer exposing any Explorer menu. The regular resident process, tray controls, active-tab target resolution, custom hotkey recorder, conflict dialog, and FastCopy execution behavior are unchanged.
+
+Verification will confirm that the managed tests and custom-hotkey layout checks pass, the release ZIP contains neither `FastCopyPaste.Shell.dll` nor `AppxManifest.xml`, an upgrade unregisters the old package, the resident Host starts at login, and the installed copy/move pipeline still works through the retained CLI test entry point. Documentation in Chinese, English, and Japanese will describe the shortcut-only integration and remove Developer Mode and sparse-package requirements.
