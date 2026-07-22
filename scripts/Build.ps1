@@ -41,7 +41,9 @@ Copy-Item -LiteralPath (Join-Path $nativeRoot 'FastCopyPaste.Shell.dll') -Destin
 Copy-Item -LiteralPath (Join-Path $repoRoot 'packaging\AppxManifest.xml') -Destination $payloadRoot -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Install.ps1') -Destination $bundleRoot -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Uninstall.ps1') -Destination $bundleRoot -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination $bundleRoot -Force
+foreach ($readmeName in @('README.md', 'README.en.md', 'README.ja.md')) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot $readmeName) -Destination $bundleRoot -Force
+}
 
 Add-Type -AssemblyName System.Drawing
 function New-Logo([int]$size, [string]$path) {

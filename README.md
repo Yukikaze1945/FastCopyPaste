@@ -1,5 +1,7 @@
 # FastCopy Paste
 
+[简体中文](README.md) | [English](README.en.md) | [日本語](README.ja.md)
+
 FastCopy Paste 是一个面向 64 位 Windows 10/11 的资源管理器集成工具。它在文件夹和文件夹空白处加入“FastCopy 粘贴到这里”菜单，并可在资源管理器文件列表中把文件剪贴板的 `Ctrl+V` 交给 FastCopy。
 
 > 本项目不是 FastCopy 官方项目，不包含或重新分发 FastCopy。使用前请自行从 [FastCopy 官网](https://fastcopy.jp/) 获取 FastCopy，并遵守其许可条款。
@@ -110,7 +112,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Test-Integration.ps1 `
 - 其他 FastCopy 5.x 版本理论上兼容，但尚未逐一验证。
 - 未签名的稀疏包要求开发者模式，并可能触发 SmartScreen 或 PowerShell 来源提示。
 - Windows 更新可能改变现代右键菜单或 Explorer 焦点结构；遇到问题请附上 Host 日志提交 Issue。
-- 当前版本界面与文档以简体中文为主。
+- 当前版本的程序界面以简体中文为主；项目文档提供简体中文、英文和日文版本。
 
 ## 许可证
 
