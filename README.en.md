@@ -1,0 +1,119 @@
+# FastCopy Paste
+
+[简体中文](README.md) | [English](README.en.md) | [日本語](README.ja.md)
+
+FastCopy Paste integrates FastCopy with File Explorer on 64-bit Windows 10 and Windows 11. It adds a **FastCopy: Paste here** command to folder context menus and can route file-paste operations triggered by `Ctrl+V` in Explorer's file view through FastCopy.
+
+> This is an independent project and is not affiliated with the FastCopy project. FastCopy is not bundled or redistributed. Download it separately from the [official FastCopy website](https://fastcopy.jp/) and comply with its license terms.
+
+## Features
+
+- Keeps the native `Ctrl+C`, `Ctrl+X`, and Windows file clipboard behavior; only `Ctrl+V` in Explorer's file view is intercepted.
+- Adds a modern top-level context-menu command on Windows 11 and a classic context-menu command on Windows 10.
+- Uses FastCopy `diff` for copy operations and `move` for cut operations while displaying FastCopy's native progress window.
+- Supports multiple selections, Unicode paths, spaces, and long paths; jobs are processed sequentially.
+- Cancels on name conflicts by default and merges/overwrites only after explicit confirmation.
+- Rejects drive-root sources, source/target identity, and attempts to paste a directory into itself or one of its descendants.
+- Clears a cut clipboard only after a successful move and only if the clipboard has not changed in the meantime.
+- Provides tray commands to pause interception, change the FastCopy path, open logs, or exit.
+
+## Requirements
+
+- 64-bit Windows 10 version 2004 / Build 19041 or later, or 64-bit Windows 11.
+- A 64-bit FastCopy installation; FastCopy 5.11.3 has been tested.
+- Windows Developer Mode must allow sparse-package registration for the Explorer context menu.
+- Installation is per-user and does not require administrator privileges.
+- Release ZIP files are self-contained x64 builds; users do not need to install the .NET Runtime separately.
+
+Windows 10 builds earlier than 19041, 32-bit Windows, and virtual Shell locations such as ZIP archives, MTP devices, and the Recycle Bin are not supported. The application does not replace Explorer's built-in mouse **Paste** command.
+
+## Installation
+
+1. Enable **Developer Mode** on the **For developers** page in Windows Settings.
+2. Download `FastCopyPaste-current-user.zip` from GitHub Releases and extract the entire archive.
+3. Open PowerShell in the extracted directory and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Install.ps1
+```
+
+The installer searches `PATH`, registered application paths, and common installation directories for `FastCopy.exe`. If it cannot find FastCopy, it opens a file picker. A portable installation can also be specified explicitly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Install.ps1 `
+  -FastCopyPath "D:\Tools\FastCopy\FastCopy.exe"
+```
+
+The application is installed to `%LOCALAPPDATA%\Programs\FastCopyPaste`; settings and logs are stored in `%LOCALAPPDATA%\FastCopyPaste`. The installer registers the current-user sparse package and logon startup entry, then starts the tray host. Running the installer again performs an in-place replacement safely.
+
+If Windows blocks a script downloaded from the internet, right-click the ZIP, open **Properties**, select **Unblock**, and extract it again. Release binaries are currently unsigned, so Windows may display an unknown-publisher warning. Download releases only from this repository and verify the published SHA-256 when appropriate.
+
+## Usage
+
+1. Select files in File Explorer and use the native `Ctrl+C` or `Ctrl+X` command.
+2. Navigate to a normal file-system directory.
+3. Press `Ctrl+V` in the file view, or right-click and choose **FastCopy 粘贴到这里** (FastCopy: Paste here). The current UI label is displayed in Simplified Chinese.
+
+The address bar, search box, other applications, virtual folders, non-file clipboard data, and paused state are not intercepted. Copying within the same directory is passed back to Explorer. A FastCopy exit code of `0` is required for success; the source and clipboard are retained after a failure.
+
+## Configuration and logs
+
+Settings are stored in `%LOCALAPPDATA%\FastCopyPaste\settings.json`:
+
+```json
+{
+  "fastCopyPath": "D:\\Tools\\FastCopy\\FastCopy.exe",
+  "hookEnabled": true
+}
+```
+
+Use the tray menu to change the FastCopy path or pause interception. Logs are stored in `%LOCALAPPDATA%\FastCopyPaste\Logs` and are never uploaded automatically.
+
+## Uninstallation
+
+Run the following command from the extracted release directory:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Uninstall.ps1
+```
+
+Uninstallation removes the current-user package registration, startup entry, installation directory, and this application's settings and logs. It does not delete or modify FastCopy.
+
+## Building from source
+
+The build environment requires the .NET 8 SDK or later, Visual Studio 2022 C++ Build Tools (v143), and the Windows 11 SDK:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Build.ps1
+```
+
+The script runs unit tests, builds the .NET host and native Shell DLL, and produces `artifacts\FastCopyPaste-current-user.zip`. The release archive does not contain PDB files, FastCopy, or user configuration.
+
+Tests can also be run separately:
+
+```powershell
+dotnet run --project .\tests\FastCopyPaste.Tests\FastCopyPaste.Tests.csproj -c Release
+powershell -ExecutionPolicy Bypass -File .\scripts\Test-Integration.ps1 `
+  -FastCopyPath "D:\Tools\FastCopy\FastCopy.exe"
+```
+
+The integration test copies the FastCopy command-line executable to a temporary directory so that the normal FastCopy configuration is not modified.
+
+## Security and privacy
+
+- The Shell DLL only resolves the target directory and notifies the host through a named pipe; it does not perform file operations inside Explorer.
+- FastCopy arguments are passed with `ProcessStartInfo.ArgumentList` instead of being concatenated into a Shell command.
+- All file operations remain local. The project has no telemetry, network communication, or automatic update service.
+- FastCopy itself may write logs and history according to its settings; this project does not remove them.
+
+## Known limitations
+
+- The x64 Windows 11 and FastCopy 5.11.3 combination has been verified. Windows 10 compatibility is enabled in the manifest and installer but still requires real-machine acceptance testing.
+- Other FastCopy 5.x versions are expected to be compatible but have not been tested individually.
+- The unsigned sparse package requires Developer Mode and may trigger SmartScreen or PowerShell origin warnings.
+- Windows updates may change Explorer's context-menu or focus behavior. Attach the host log when reporting an issue.
+- The application UI is currently primarily Simplified Chinese; project documentation is available in Simplified Chinese, English, and Japanese.
+
+## License
+
+This project is released under the [MIT License](LICENSE). FastCopy is separate third-party software and is not covered by this project's license or included in its release archives.

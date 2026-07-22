@@ -11,7 +11,8 @@ internal enum PasteOrigin
 internal sealed record PasteJob(
     ClipboardSnapshot Clipboard,
     string TargetDirectory,
-    PasteOrigin Origin);
+    PasteOrigin Origin,
+    nint OwnerWindow);
 
 internal sealed class PasteCoordinator
 {
@@ -37,7 +38,7 @@ internal sealed class PasteCoordinator
         _notify = notify;
     }
 
-    public bool TryEnqueue(string targetDirectory, PasteOrigin origin)
+    public bool TryEnqueue(string targetDirectory, PasteOrigin origin, nint ownerWindow = default)
     {
         if (!_clipboard.TryCapture(out var snapshot) || snapshot is null)
         {
@@ -49,7 +50,7 @@ internal sealed class PasteCoordinator
             return false;
         }
 
-        _queue.Enqueue(new PasteJob(snapshot, targetDirectory, origin));
+        _queue.Enqueue(new PasteJob(snapshot, targetDirectory, origin, ownerWindow));
         _log.Info($"Queued {snapshot.Mode}: {snapshot.Sources.Count} source(s) -> {targetDirectory}");
         if (!_processing)
         {
@@ -112,8 +113,7 @@ internal sealed class PasteCoordinator
 
         if (plan.Conflicts.Count > 0)
         {
-            using var dialog = new ConflictDialog(plan.Conflicts);
-            if (dialog.ShowDialog() != DialogResult.OK)
+            if (ShowConflictDialog(plan.Conflicts, job.OwnerWindow) != DialogResult.OK)
             {
                 _log.Info("Paste canceled at conflict confirmation.");
                 return;
@@ -155,5 +155,17 @@ internal sealed class PasteCoordinator
             _notify("FastCopy 启动失败", ex.Message, ToolTipIcon.Error);
         }
     }
-}
 
+    private static DialogResult ShowConflictDialog(
+        IReadOnlyList<string> conflicts,
+        nint ownerWindow)
+    {
+        using var dialog = new ConflictDialog(conflicts);
+        if (ownerWindow != nint.Zero && NativeMethods.IsWindow(ownerWindow))
+        {
+            return dialog.ShowDialog(new WindowHandleOwner(ownerWindow));
+        }
+
+        return dialog.ShowDialog();
+    }
+}
