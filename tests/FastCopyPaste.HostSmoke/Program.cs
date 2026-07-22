@@ -1,6 +1,11 @@
 using System.Text.Json;
 using FastCopyPaste.Host;
 
+if (args.Length == 1 && string.Equals(args[0], "--hotkey-tests", StringComparison.OrdinalIgnoreCase))
+{
+    return RunHotkeyTests();
+}
+
 if (args.Length == 1 && string.Equals(args[0], "--conflict-dialog", StringComparison.OrdinalIgnoreCase))
 {
     return RunInSta(() =>
@@ -100,6 +105,108 @@ static int InspectConflictDialog()
            labels.All(label => label.Height >= label.PreferredHeight) &&
            buttons.All(button => button.Width >= button.MinimumSize.Width) &&
            list.HorizontalScrollbar ? 0 : 1;
+}
+
+static int RunHotkeyTests()
+{
+    var failures = new List<string>();
+    Check("default is Ctrl+V", () =>
+    {
+        AssertEqual(0x56, HotkeyGesture.Default.VirtualKey);
+        AssertEqual(HotkeyModifiers.Control, HotkeyGesture.Default.Modifiers);
+        AssertEqual("Ctrl+V", HotkeyGesture.Default.ToDisplayString());
+    }, failures);
+    Check("exact modifiers match", () =>
+    {
+        AssertTrue(HotkeyGesture.Default.Matches(0x56, HotkeyModifiers.Control));
+        AssertFalse(HotkeyGesture.Default.Matches(
+            0x56,
+            HotkeyModifiers.Control | HotkeyModifiers.Shift));
+        AssertFalse(HotkeyGesture.Default.Matches(0x43, HotkeyModifiers.Control));
+    }, failures);
+    Check("unmodified arbitrary key is allowed", () =>
+    {
+        var gesture = new HotkeyGesture(0x41, HotkeyModifiers.None);
+        AssertTrue(gesture.IsUsable);
+        AssertTrue(gesture.Matches(0x41, HotkeyModifiers.None));
+        AssertEqual("A", gesture.ToDisplayString());
+    }, failures);
+    Check("Windows combinations are allowed", () =>
+    {
+        var gesture = new HotkeyGesture(
+            0x44,
+            HotkeyModifiers.Windows | HotkeyModifiers.Shift);
+        AssertTrue(gesture.IsUsable);
+        AssertEqual("Shift+Win+D", gesture.ToDisplayString());
+    }, failures);
+    Check("modifier-only gestures are rejected", () =>
+    {
+        AssertFalse(new HotkeyGesture(0x10, HotkeyModifiers.None).IsUsable);
+        AssertFalse(new HotkeyGesture(0x11, HotkeyModifiers.Control).IsUsable);
+        AssertFalse(new HotkeyGesture(0x12, HotkeyModifiers.Alt).IsUsable);
+        AssertFalse(new HotkeyGesture(0x5B, HotkeyModifiers.Windows).IsUsable);
+    }, failures);
+    Check("legacy settings migrate to Ctrl+V", () =>
+    {
+        var settings = JsonSerializer.Deserialize<AppSettings>("{\"hookEnabled\":true}")!;
+        settings.Normalize();
+        AssertEqual(HotkeyGesture.Default, settings.Hotkey);
+    }, failures);
+    Check("invalid persisted gesture normalizes to default", () =>
+    {
+        var settings = JsonSerializer.Deserialize<AppSettings>(
+            "{\"hotkey\":{\"virtualKey\":17,\"modifiers\":1}}")!;
+        settings.Normalize();
+        AssertEqual(HotkeyGesture.Default, settings.Hotkey);
+    }, failures);
+    Check("settings round trip arbitrary gesture", () =>
+    {
+        var original = new AppSettings
+        {
+            FastCopyPath = @"F:\\FastCopy\\FastCopy.exe",
+            HookEnabled = true,
+            Hotkey = new HotkeyGesture(0x70, HotkeyModifiers.None)
+        };
+        var serialized = JsonSerializer.Serialize(original);
+        var restored = JsonSerializer.Deserialize<AppSettings>(serialized)!;
+        restored.Normalize();
+        AssertEqual(original.Hotkey, restored.Hotkey);
+    }, failures);
+
+    Console.WriteLine($"RESULT {8 - failures.Count}/8 passed");
+    return failures.Count == 0 ? 0 : 1;
+}
+
+static void Check(string name, Action test, ICollection<string> failures)
+{
+    try
+    {
+        test();
+        Console.WriteLine($"PASS {name}");
+    }
+    catch (Exception exception)
+    {
+        failures.Add(name);
+        Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
+    }
+}
+
+static void AssertTrue(bool value)
+{
+    if (!value) throw new InvalidOperationException("Expected true.");
+}
+
+static void AssertFalse(bool value)
+{
+    if (value) throw new InvalidOperationException("Expected false.");
+}
+
+static void AssertEqual<T>(T expected, T actual)
+{
+    if (!EqualityComparer<T>.Default.Equals(expected, actual))
+    {
+        throw new InvalidOperationException($"Expected {expected}, actual {actual}.");
+    }
 }
 
 static IEnumerable<System.Windows.Forms.Control> Descendants(System.Windows.Forms.Control root)
