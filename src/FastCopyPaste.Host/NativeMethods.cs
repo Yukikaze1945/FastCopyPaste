@@ -25,6 +25,7 @@ internal static class NativeMethods
     internal const uint LlkhfInjected = 0x10;
     internal const nuint ReplayExtraInfo = 0x46435056;
     internal const uint InputKeyboard = 1;
+    internal const uint KeyeventfExtendedkey = 0x0001;
     internal const uint KeyeventfKeyup = 0x0002;
     internal const uint GaRoot = 2;
 

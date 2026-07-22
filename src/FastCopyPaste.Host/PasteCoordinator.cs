@@ -12,7 +12,8 @@ internal sealed record PasteJob(
     ClipboardSnapshot Clipboard,
     string TargetDirectory,
     PasteOrigin Origin,
-    nint OwnerWindow);
+    nint OwnerWindow,
+    HotkeyGesture? ReplayGesture);
 
 internal sealed class PasteCoordinator
 {
@@ -38,7 +39,11 @@ internal sealed class PasteCoordinator
         _notify = notify;
     }
 
-    public bool TryEnqueue(string targetDirectory, PasteOrigin origin, nint ownerWindow = default)
+    public bool TryEnqueue(
+        string targetDirectory,
+        PasteOrigin origin,
+        nint ownerWindow = default,
+        HotkeyGesture? replayGesture = null)
     {
         if (!_clipboard.TryCapture(out var snapshot) || snapshot is null)
         {
@@ -50,7 +55,12 @@ internal sealed class PasteCoordinator
             return false;
         }
 
-        _queue.Enqueue(new PasteJob(snapshot, targetDirectory, origin, ownerWindow));
+        _queue.Enqueue(new PasteJob(
+            snapshot,
+            targetDirectory,
+            origin,
+            ownerWindow,
+            replayGesture));
         _log.Info($"Queued {snapshot.Mode}: {snapshot.Sources.Count} source(s) -> {targetDirectory}");
         if (!_processing)
         {
@@ -83,7 +93,7 @@ internal sealed class PasteCoordinator
         {
             if (job.Origin == PasteOrigin.Hotkey)
             {
-                KeyboardHook.ReplayVKey();
+                KeyboardHook.ReplayGesture(job.ReplayGesture ?? HotkeyGesture.Default);
             }
             else
             {

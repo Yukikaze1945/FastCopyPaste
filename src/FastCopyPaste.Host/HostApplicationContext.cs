@@ -49,7 +49,7 @@ internal sealed class HostApplicationContext : ApplicationContext
             _log,
             Notify);
 
-        _keyboardHook = new KeyboardHook(TryInterceptHotkey);
+        _keyboardHook = new KeyboardHook(_settings.Hotkey, TryInterceptHotkey);
         ApplyHookSetting(showError: true);
 
         _pipeServer = new PipeServer(
@@ -92,14 +92,18 @@ internal sealed class HostApplicationContext : ApplicationContext
             directory is null)
         {
             _log.Info($"Hotkey target resolution failed for HWND {foregroundWindow}.");
-            KeyboardHook.ReplayVKey();
+            KeyboardHook.ReplayGesture(_keyboardHook.Gesture);
             return;
         }
 
-        if (!_coordinator.TryEnqueue(directory, PasteOrigin.Hotkey, foregroundWindow))
+        if (!_coordinator.TryEnqueue(
+                directory,
+                PasteOrigin.Hotkey,
+                foregroundWindow,
+                _keyboardHook.Gesture))
         {
             _log.Info("Hotkey clipboard capture failed; replaying native paste.");
-            KeyboardHook.ReplayVKey();
+            KeyboardHook.ReplayGesture(_keyboardHook.Gesture);
         }
     }
 

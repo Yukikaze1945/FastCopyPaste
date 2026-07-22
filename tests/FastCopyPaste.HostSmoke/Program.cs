@@ -172,8 +172,35 @@ static int RunHotkeyTests()
         restored.Normalize();
         AssertEqual(original.Hotkey, restored.Hotkey);
     }, failures);
+    Check("modifier state is derived exactly", () =>
+    {
+        var down = new HashSet<int>
+        {
+            NativeMethods.VkControl,
+            NativeMethods.VkShift,
+            NativeMethods.VkRightWindows
+        };
+        var modifiers = KeyboardHook.GetPressedModifiers(down.Contains);
+        AssertEqual(
+            HotkeyModifiers.Control | HotkeyModifiers.Shift | HotkeyModifiers.Windows,
+            modifiers);
+    }, failures);
+    Check("replay inputs preserve configured gesture", () =>
+    {
+        var gesture = new HotkeyGesture(
+            0x41,
+            HotkeyModifiers.Control | HotkeyModifiers.Shift);
+        var inputs = KeyboardHook.CreateReplayInputs(gesture, _ => false);
+        AssertEqual(6, inputs.Length);
+        AssertEqual((ushort)NativeMethods.VkControl, inputs[0].Union.Keyboard.VirtualKey);
+        AssertEqual((ushort)NativeMethods.VkShift, inputs[1].Union.Keyboard.VirtualKey);
+        AssertEqual((ushort)0x41, inputs[2].Union.Keyboard.VirtualKey);
+        AssertEqual((ushort)0x41, inputs[3].Union.Keyboard.VirtualKey);
+        AssertTrue(inputs.All(input =>
+            input.Union.Keyboard.ExtraInfo == NativeMethods.ReplayExtraInfo));
+    }, failures);
 
-    Console.WriteLine($"RESULT {8 - failures.Count}/8 passed");
+    Console.WriteLine($"RESULT {10 - failures.Count}/10 passed");
     return failures.Count == 0 ? 0 : 1;
 }
 
