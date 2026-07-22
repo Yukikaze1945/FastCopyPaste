@@ -50,9 +50,10 @@ internal sealed class KeyboardHook : IDisposable
         _handledVDown = false;
     }
 
-    public static bool IsExplorerFileView(out nint foregroundWindow)
+    public static bool IsExplorerFileView(out nint foregroundWindow, out nint focusedWindow)
     {
         foregroundWindow = NativeMethods.GetForegroundWindow();
+        focusedWindow = nint.Zero;
         if (foregroundWindow == nint.Zero)
         {
             return false;
@@ -81,8 +82,10 @@ internal sealed class KeyboardHook : IDisposable
             return false;
         }
 
+        focusedWindow = info.FocusWindow;
+
         var foundFileView = false;
-        var current = info.FocusWindow;
+        var current = focusedWindow;
         for (var depth = 0; current != nint.Zero && depth < 16; depth++)
         {
             var className = GetClassName(current);

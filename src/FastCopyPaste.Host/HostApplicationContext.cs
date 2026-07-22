@@ -53,13 +53,22 @@ internal sealed class HostApplicationContext : ApplicationContext
         ApplyHookSetting(showError: true);
 
         _pipeServer = new PipeServer(
-            target => _uiContext.Post(_ => _coordinator.TryEnqueue(target, PasteOrigin.Menu), null),
+            target =>
+            {
+                var ownerWindow = NativeMethods.GetForegroundWindow();
+                _uiContext.Post(
+                    _ => _coordinator.TryEnqueue(target, PasteOrigin.Menu, ownerWindow),
+                    null);
+            },
             _log);
         _pipeServer.Start();
 
         if (initialTarget is not null)
         {
-            _uiContext.Post(_ => _coordinator.TryEnqueue(initialTarget, PasteOrigin.Menu), null);
+            var ownerWindow = NativeMethods.GetForegroundWindow();
+            _uiContext.Post(
+                _ => _coordinator.TryEnqueue(initialTarget, PasteOrigin.Menu, ownerWindow),
+                null);
         }
 
         _log.Info("Host started.");
@@ -68,25 +77,26 @@ internal sealed class HostApplicationContext : ApplicationContext
     private bool TryInterceptHotkey()
     {
         if (!_settings.HookEnabled || !_clipboard.HasFileDropList() ||
-            !KeyboardHook.IsExplorerFileView(out var foregroundWindow))
+            !KeyboardHook.IsExplorerFileView(out var foregroundWindow, out var focusedWindow))
         {
             return false;
         }
 
-        _uiContext.Post(_ => HandleHotkeyPaste(foregroundWindow), null);
+        _uiContext.Post(_ => HandleHotkeyPaste(foregroundWindow, focusedWindow), null);
         return true;
     }
 
-    private void HandleHotkeyPaste(nint foregroundWindow)
+    private void HandleHotkeyPaste(nint foregroundWindow, nint focusedWindow)
     {
-        if (!_explorer.TryGetCurrentDirectory(foregroundWindow, out var directory) || directory is null)
+        if (!_explorer.TryGetCurrentDirectory(foregroundWindow, focusedWindow, out var directory) ||
+            directory is null)
         {
             _log.Info($"Hotkey target resolution failed for HWND {foregroundWindow}.");
             KeyboardHook.ReplayVKey();
             return;
         }
 
-        if (!_coordinator.TryEnqueue(directory, PasteOrigin.Hotkey))
+        if (!_coordinator.TryEnqueue(directory, PasteOrigin.Hotkey, foregroundWindow))
         {
             _log.Info("Hotkey clipboard capture failed; replaying native paste.");
             KeyboardHook.ReplayVKey();
