@@ -4,6 +4,27 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Assert-SupportedWindows {
+    if (-not [Environment]::Is64BitOperatingSystem) {
+        throw 'FastCopy Paste requires a 64-bit edition of Windows.'
+    }
+
+    $windowsVersion = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop
+    $buildNumber = 0
+    if (-not [int]::TryParse([string]$windowsVersion.CurrentBuildNumber, [ref]$buildNumber)) {
+        throw 'The Windows build number could not be determined.'
+    }
+
+    if ($buildNumber -lt 19041) {
+        throw "FastCopy Paste requires Windows 10 version 2004 (Build 19041) or later. Current build: $buildNumber."
+    }
+
+    Write-Verbose "Supported 64-bit Windows build detected: $buildNumber"
+}
+
+Assert-SupportedWindows
+
 $payloadRoot = Join-Path $PSScriptRoot 'payload'
 if (-not (Test-Path -LiteralPath (Join-Path $payloadRoot 'FastCopyPaste.Host.exe'))) {
     throw 'The payload directory is missing. Extract the complete release ZIP before installing.'
