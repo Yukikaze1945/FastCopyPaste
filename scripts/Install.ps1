@@ -139,9 +139,6 @@ try {
     New-Item -ItemType Directory -Path $installRoot | Out-Null
     Copy-Item -Path (Join-Path $payloadRoot '*') -Destination $installRoot -Recurse -Force
 
-    $manifest = Join-Path $installRoot 'AppxManifest.xml'
-    Add-AppxPackage -Register $manifest -ExternalLocation $installRoot
-
     New-Item -Path $runKey -Force | Out-Null
     $hostExe = Join-Path $installRoot 'FastCopyPaste.Host.exe'
     Set-ItemProperty -Path $runKey -Name $runName -Value ('"' + $hostExe + '" --resident')
