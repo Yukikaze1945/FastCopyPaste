@@ -1,6 +1,19 @@
-# FastCopy Paste
+<p align="center">
+  <img src="assets/fastcopy-paste-logo.png" width="180" alt="FastCopy Paste Logo">
+</p>
 
-[简体中文](README.md) | [English](README.en.md) | [日本語](README.ja.md)
+<h1 align="center">FastCopy Paste</h1>
+
+<p align="center">
+  <a href="https://github.com/Yukikaze1945/FastCopyPaste/releases/latest"><img src="https://img.shields.io/badge/release-20260723-0078D4" alt="Release 20260723"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT License"></a>
+</p>
+
+<p align="center">
+  <a href="README.md">简体中文</a> |
+  <a href="README.en.md">English</a> |
+  <a href="README.ja.md">日本語</a>
+</p>
 
 FastCopy Paste 是一个面向 64 位 Windows 10/11 的资源管理器集成工具。它在文件夹和文件夹空白处加入“FastCopy 粘贴到这里”菜单，并可在资源管理器文件列表中把文件剪贴板的 `Ctrl+V` 交给 FastCopy。
 
