@@ -149,8 +149,32 @@ try {
     $settingsDirectory = Join-Path $env:LOCALAPPDATA 'FastCopyPaste'
     New-Item -ItemType Directory -Path $settingsDirectory -Force | Out-Null
     $settingsPath = Join-Path $settingsDirectory 'settings.json'
-    $settings = [ordered]@{ fastCopyPath = $FastCopyPath; hookEnabled = $true }
-    $settings | ConvertTo-Json | Set-Content -LiteralPath $settingsPath -Encoding UTF8
+    $hookEnabled = $true
+    $hotkey = [ordered]@{ virtualKey = 86; modifiers = 1 }
+    if (Test-Path -LiteralPath $settingsPath -PathType Leaf) {
+        try {
+            $existingSettings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($null -ne $existingSettings.hookEnabled) {
+                $hookEnabled = [bool]$existingSettings.hookEnabled
+            }
+            if ($null -ne $existingSettings.hotkey -and
+                $null -ne $existingSettings.hotkey.virtualKey -and
+                $null -ne $existingSettings.hotkey.modifiers) {
+                $hotkey = [ordered]@{
+                    virtualKey = [int]$existingSettings.hotkey.virtualKey
+                    modifiers = [int]$existingSettings.hotkey.modifiers
+                }
+            }
+        } catch {
+            # Invalid legacy settings are replaced with safe defaults below.
+        }
+    }
+    $settings = [ordered]@{
+        fastCopyPath = $FastCopyPath
+        hookEnabled = $hookEnabled
+        hotkey = $hotkey
+    }
+    $settings | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $settingsPath -Encoding UTF8
 
     Start-Process -FilePath $hostExe -ArgumentList '--resident' -WindowStyle Hidden
     $installed = $true

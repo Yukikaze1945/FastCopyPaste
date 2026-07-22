@@ -203,6 +203,11 @@ static int RunHotkeyTests()
             "{\"hotkey\":{\"virtualKey\":17,\"modifiers\":1}}")!;
         settings.Normalize();
         AssertEqual(HotkeyGesture.Default, settings.Hotkey);
+
+        settings = JsonSerializer.Deserialize<AppSettings>(
+            "{\"hotkey\":{\"virtualKey\":65,\"modifiers\":16}}")!;
+        settings.Normalize();
+        AssertEqual(HotkeyGesture.Default, settings.Hotkey);
     }, failures);
     Check("settings round trip arbitrary gesture", () =>
     {

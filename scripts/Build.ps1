@@ -19,6 +19,12 @@ if (-not (Test-Path -LiteralPath $dotnet)) { throw '.NET SDK was not found.' }
 & $dotnet run --project (Join-Path $repoRoot 'tests\FastCopyPaste.Tests\FastCopyPaste.Tests.csproj') -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
 
+& $dotnet run --project (Join-Path $repoRoot 'tests\FastCopyPaste.HostSmoke\FastCopyPaste.HostSmoke.csproj') -c Release -- --hotkey-tests
+if ($LASTEXITCODE -ne 0) { throw 'Hotkey tests failed.' }
+
+& $dotnet run --project (Join-Path $repoRoot 'tests\FastCopyPaste.HostSmoke\FastCopyPaste.HostSmoke.csproj') -c Release -- --inspect-hotkey-dialog
+if ($LASTEXITCODE -ne 0) { throw 'Hotkey dialog layout inspection failed.' }
+
 $publishRoot = Join-Path $artifactsRoot 'publish'
 & $dotnet publish (Join-Path $repoRoot 'src\FastCopyPaste.Host\FastCopyPaste.Host.csproj') -c Release -r win-x64 --self-contained true -o $publishRoot
 if ($LASTEXITCODE -ne 0) { throw 'Host publish failed.' }

@@ -16,11 +16,19 @@ internal sealed record HotkeyGesture(
     [property: JsonPropertyName("virtualKey")] int VirtualKey,
     [property: JsonPropertyName("modifiers")] HotkeyModifiers Modifiers)
 {
+    private const HotkeyModifiers SupportedModifiers =
+        HotkeyModifiers.Control |
+        HotkeyModifiers.Alt |
+        HotkeyModifiers.Shift |
+        HotkeyModifiers.Windows;
+
     internal static HotkeyGesture Default { get; } =
         new(NativeMethods.VkV, HotkeyModifiers.Control);
 
     internal bool IsUsable =>
-        VirtualKey is > 0 and <= 0xFE && !IsModifierKey(VirtualKey);
+        VirtualKey is > 0 and <= 0xFE &&
+        !IsModifierKey(VirtualKey) &&
+        (Modifiers & ~SupportedModifiers) == HotkeyModifiers.None;
 
     internal bool Matches(int virtualKey, HotkeyModifiers pressedModifiers) =>
         IsUsable && VirtualKey == virtualKey && Modifiers == pressedModifiers;

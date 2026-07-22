@@ -21,14 +21,15 @@ FastCopy Paste integrates FastCopy with File Explorer on 64-bit Windows 10 and W
 
 ## Features
 
-- Keeps the native `Ctrl+C`, `Ctrl+X`, and Windows file clipboard behavior; only `Ctrl+V` in Explorer's file view is intercepted.
+- Keeps native `Ctrl+C`, `Ctrl+X`, and Windows file clipboard behavior; `Ctrl+V` is the default Explorer interception shortcut.
+- Records any replacement shortcut from the tray; after changing it, native `Ctrl+V` is returned completely to Explorer.
 - Adds a modern top-level context-menu command on Windows 11 and a classic context-menu command on Windows 10.
 - Uses FastCopy `diff` for copy operations and `move` for cut operations while displaying FastCopy's native progress window.
 - Supports multiple selections, Unicode paths, spaces, and long paths; jobs are processed sequentially.
 - Cancels on name conflicts by default and merges/overwrites only after explicit confirmation.
 - Rejects drive-root sources, source/target identity, and attempts to paste a directory into itself or one of its descendants.
 - Clears a cut clipboard only after a successful move and only if the clipboard has not changed in the meantime.
-- Provides tray commands to pause interception, change the FastCopy path, open logs, or exit.
+- Provides tray commands to pause interception, record the shortcut, change the FastCopy path, open logs, or exit.
 
 ## Requirements
 
@@ -65,7 +66,7 @@ If Windows blocks a script downloaded from the internet, right-click the ZIP, op
 
 1. Select files in File Explorer and use the native `Ctrl+C` or `Ctrl+X` command.
 2. Navigate to a normal file-system directory.
-3. Press `Ctrl+V` in the file view, or right-click and choose **FastCopy 粘贴到这里** (FastCopy: Paste here). The current UI label is displayed in Simplified Chinese.
+3. Press the configured shortcut (`Ctrl+V` by default) in the file view, or right-click and choose **FastCopy 粘贴到这里** (FastCopy: Paste here). The current UI label is displayed in Simplified Chinese.
 
 The address bar, search box, other applications, virtual folders, non-file clipboard data, and paused state are not intercepted. Copying within the same directory is passed back to Explorer. A FastCopy exit code of `0` is required for success; the source and clipboard are retained after a failure.
 
@@ -76,11 +77,15 @@ Settings are stored in `%LOCALAPPDATA%\FastCopyPaste\settings.json`:
 ```json
 {
   "fastCopyPath": "D:\\Tools\\FastCopy\\FastCopy.exe",
-  "hookEnabled": true
+  "hookEnabled": true,
+  "hotkey": {
+    "virtualKey": 86,
+    "modifiers": 1
+  }
 }
 ```
 
-Use the tray menu to change the FastCopy path or pause interception. Logs are stored in `%LOCALAPPDATA%\FastCopyPaste\Logs` and are never uploaded automatically.
+Use the tray menu to record the shortcut, change the FastCopy path, or pause interception. Any non-modifier key may be combined freely with `Ctrl`, `Alt`, `Shift`, and `Win`; modifier-only gestures and secure Windows combinations that applications never receive cannot be used. Logs are stored in `%LOCALAPPDATA%\FastCopyPaste\Logs` and are never uploaded automatically.
 
 ## Uninstallation
 

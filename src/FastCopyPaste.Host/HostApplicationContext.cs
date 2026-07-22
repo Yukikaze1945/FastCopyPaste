@@ -146,7 +146,7 @@ internal sealed class HostApplicationContext : ApplicationContext
             _log.Error("Keyboard hook installation failed.", ex);
             if (showError)
             {
-                Notify("Ctrl+V 接管未启动", ex.Message, ToolTipIcon.Error);
+                Notify("快捷键接管未启动", ex.Message, ToolTipIcon.Error);
             }
         }
 
