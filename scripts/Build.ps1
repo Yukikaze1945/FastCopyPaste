@@ -44,6 +44,7 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Uninstall.ps1') -Destinatio
 foreach ($readmeName in @('README.md', 'README.en.md', 'README.ja.md')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $readmeName) -Destination $bundleRoot -Force
 }
+Copy-Item -LiteralPath (Join-Path $repoRoot 'assets') -Destination $bundleRoot -Recurse -Force
 
 Add-Type -AssemblyName System.Drawing
 function New-Logo([int]$size, [string]$path) {

@@ -1,6 +1,19 @@
-# FastCopy Paste
+<p align="center">
+  <img src="assets/fastcopy-paste-logo.png" width="180" alt="FastCopy Paste Logo">
+</p>
 
-[简体中文](README.md) | [English](README.en.md) | [日本語](README.ja.md)
+<h1 align="center">FastCopy Paste</h1>
+
+<p align="center">
+  <a href="https://github.com/Yukikaze1945/FastCopyPaste/releases/latest"><img src="https://img.shields.io/badge/release-20260723-0078D4" alt="Release 20260723"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F" alt="MIT License"></a>
+</p>
+
+<p align="center">
+  <a href="README.md">简体中文</a> |
+  <a href="README.en.md">English</a> |
+  <a href="README.ja.md">日本語</a>
+</p>
 
 FastCopy Paste integrates FastCopy with File Explorer on 64-bit Windows 10 and Windows 11. It adds a **FastCopy: Paste here** command to folder context menus and can route file-paste operations triggered by `Ctrl+V` in Explorer's file view through FastCopy.
 
