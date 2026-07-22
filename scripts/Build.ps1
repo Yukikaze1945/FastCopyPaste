@@ -19,6 +19,12 @@ if (-not (Test-Path -LiteralPath $dotnet)) { throw '.NET SDK was not found.' }
 & $dotnet run --project (Join-Path $repoRoot 'tests\FastCopyPaste.Tests\FastCopyPaste.Tests.csproj') -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
 
+& $dotnet run --project (Join-Path $repoRoot 'tests\FastCopyPaste.HostSmoke\FastCopyPaste.HostSmoke.csproj') -c Release -- --hotkey-tests
+if ($LASTEXITCODE -ne 0) { throw 'Hotkey tests failed.' }
+
+& $dotnet run --project (Join-Path $repoRoot 'tests\FastCopyPaste.HostSmoke\FastCopyPaste.HostSmoke.csproj') -c Release -- --inspect-hotkey-dialog
+if ($LASTEXITCODE -ne 0) { throw 'Hotkey dialog layout inspection failed.' }
+
 $publishRoot = Join-Path $artifactsRoot 'publish'
 & $dotnet publish (Join-Path $repoRoot 'src\FastCopyPaste.Host\FastCopyPaste.Host.csproj') -c Release -r win-x64 --self-contained true -o $publishRoot
 if ($LASTEXITCODE -ne 0) { throw 'Host publish failed.' }
@@ -47,30 +53,37 @@ foreach ($readmeName in @('README.md', 'README.en.md', 'README.ja.md')) {
 Copy-Item -LiteralPath (Join-Path $repoRoot 'assets') -Destination $bundleRoot -Recurse -Force
 
 Add-Type -AssemblyName System.Drawing
-function New-Logo([int]$size, [string]$path) {
-    $bitmap = [System.Drawing.Bitmap]::new($size, $size)
+function New-LogoVariant([int]$size, [string]$path) {
+    $sourcePath = Join-Path $repoRoot 'assets\fastcopy-paste-logo.png'
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        throw "Logo source not found: $sourcePath"
+    }
+
+    $sourceImage = [System.Drawing.Image]::FromFile($sourcePath)
     try {
-        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $bitmap = [System.Drawing.Bitmap]::new(
+            $size,
+            $size,
+            [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
         try {
-            $graphics.Clear([System.Drawing.Color]::FromArgb(40, 125, 70))
-            $fontSize = [Math]::Max(10, [Math]::Floor($size * 0.55))
-            $font = [System.Drawing.Font]::new('Segoe UI', $fontSize, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
             try {
-                $format = [System.Drawing.StringFormat]::new()
-                try {
-                    $format.Alignment = [System.Drawing.StringAlignment]::Center
-                    $format.LineAlignment = [System.Drawing.StringAlignment]::Center
-                    $graphics.DrawString('F', $font, [System.Drawing.Brushes]::White, [System.Drawing.RectangleF]::new(0, 0, $size, $size), $format)
-                } finally { $format.Dispose() }
-            } finally { $font.Dispose() }
-        } finally { $graphics.Dispose() }
-        $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
-    } finally { $bitmap.Dispose() }
+                $graphics.Clear([System.Drawing.Color]::Transparent)
+                $graphics.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
+                $graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+                $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+                $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+                $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+                $graphics.DrawImage($sourceImage, 0, 0, $size, $size)
+            } finally { $graphics.Dispose() }
+            $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+        } finally { $bitmap.Dispose() }
+    } finally { $sourceImage.Dispose() }
 }
 
-New-Logo 50 (Join-Path $assetsRoot 'StoreLogo.png')
-New-Logo 44 (Join-Path $assetsRoot 'Square44x44Logo.png')
-New-Logo 150 (Join-Path $assetsRoot 'Square150x150Logo.png')
+New-LogoVariant 50 (Join-Path $assetsRoot 'StoreLogo.png')
+New-LogoVariant 44 (Join-Path $assetsRoot 'Square44x44Logo.png')
+New-LogoVariant 150 (Join-Path $assetsRoot 'Square150x150Logo.png')
 
 $zipPath = Join-Path $artifactsRoot 'FastCopyPaste-current-user.zip'
 Compress-Archive -Path (Join-Path $bundleRoot '*') -DestinationPath $zipPath -CompressionLevel Optimal

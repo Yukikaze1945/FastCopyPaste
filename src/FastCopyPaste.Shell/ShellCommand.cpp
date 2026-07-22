@@ -91,7 +91,7 @@ namespace
         return S_OK;
     }
 
-    HRESULT LaunchHost(const std::wstring& target)
+    HRESULT GetHostPath(std::wstring& hostPath, std::wstring* moduleDirectory = nullptr)
     {
         wchar_t modulePath[32768]{};
         const DWORD length = GetModuleFileNameW(moduleHandle, modulePath, ARRAYSIZE(modulePath));
@@ -105,11 +105,29 @@ namespace
             return E_UNEXPECTED;
         }
 
-        std::wstring hostPath = modulePath;
+        if (moduleDirectory != nullptr)
+        {
+            moduleDirectory->assign(modulePath);
+        }
+
+        hostPath.assign(modulePath);
         hostPath += L"\\FastCopyPaste.Host.exe";
         if (GetFileAttributesW(hostPath.c_str()) == INVALID_FILE_ATTRIBUTES)
         {
             return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+        }
+
+        return S_OK;
+    }
+
+    HRESULT LaunchHost(const std::wstring& target)
+    {
+        std::wstring hostPath;
+        std::wstring moduleDirectory;
+        const HRESULT pathResult = GetHostPath(hostPath, &moduleDirectory);
+        if (FAILED(pathResult))
+        {
+            return pathResult;
         }
 
         std::wstring commandLine = QuoteArgument(hostPath) + L" --paste-target " + QuoteArgument(target);
@@ -127,7 +145,7 @@ namespace
                 FALSE,
                 CREATE_NO_WINDOW,
                 nullptr,
-                modulePath,
+                moduleDirectory.c_str(),
                 &startupInfo,
                 &processInfo))
         {
@@ -192,7 +210,15 @@ namespace
                 return E_POINTER;
             }
             *icon = nullptr;
-            return E_NOTIMPL;
+            std::wstring hostPath;
+            const HRESULT result = GetHostPath(hostPath);
+            if (FAILED(result))
+            {
+                return result;
+            }
+
+            hostPath += L",0";
+            return SHStrDupW(hostPath.c_str(), icon);
         }
 
         IFACEMETHODIMP GetToolTip(IShellItemArray*, PWSTR* tooltip) override

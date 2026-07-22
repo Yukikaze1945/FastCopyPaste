@@ -5,7 +5,9 @@ namespace FastCopyPaste.Host;
 internal sealed class HostApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
+    private readonly Icon _applicationIcon;
     private readonly ToolStripMenuItem _toggleItem;
+    private readonly ToolStripMenuItem _hotkeyItem;
     private readonly AppSettings _settings;
     private readonly SettingsStore _settingsStore;
     private readonly AppLog _log;
@@ -28,15 +30,25 @@ internal sealed class HostApplicationContext : ApplicationContext
 
         _toggleItem = new ToolStripMenuItem();
         _toggleItem.Click += ToggleHook;
+        _hotkeyItem = new ToolStripMenuItem();
+        _hotkeyItem.Click += ChooseHotkey;
         var chooseFastCopyItem = new ToolStripMenuItem("设置 FastCopy 路径...", null, ChooseFastCopyPath);
         var openLogsItem = new ToolStripMenuItem("查看日志", null, OpenLogs);
         var exitItem = new ToolStripMenuItem("退出", null, ExitApplication);
         var menu = new ContextMenuStrip();
-        menu.Items.AddRange([_toggleItem, chooseFastCopyItem, openLogsItem, new ToolStripSeparator(), exitItem]);
+        menu.Items.AddRange([
+            _toggleItem,
+            _hotkeyItem,
+            chooseFastCopyItem,
+            openLogsItem,
+            new ToolStripSeparator(),
+            exitItem
+        ]);
 
+        _applicationIcon = LoadApplicationIcon();
         _notifyIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = _applicationIcon,
             Text = "FastCopy 粘贴",
             ContextMenuStrip = menu,
             Visible = true
@@ -49,7 +61,7 @@ internal sealed class HostApplicationContext : ApplicationContext
             _log,
             Notify);
 
-        _keyboardHook = new KeyboardHook(TryInterceptHotkey);
+        _keyboardHook = new KeyboardHook(_settings.Hotkey, TryInterceptHotkey);
         ApplyHookSetting(showError: true);
 
         _pipeServer = new PipeServer(
@@ -92,14 +104,18 @@ internal sealed class HostApplicationContext : ApplicationContext
             directory is null)
         {
             _log.Info($"Hotkey target resolution failed for HWND {foregroundWindow}.");
-            KeyboardHook.ReplayVKey();
+            KeyboardHook.ReplayGesture(_keyboardHook.Gesture);
             return;
         }
 
-        if (!_coordinator.TryEnqueue(directory, PasteOrigin.Hotkey, foregroundWindow))
+        if (!_coordinator.TryEnqueue(
+                directory,
+                PasteOrigin.Hotkey,
+                foregroundWindow,
+                _keyboardHook.Gesture))
         {
             _log.Info("Hotkey clipboard capture failed; replaying native paste.");
-            KeyboardHook.ReplayVKey();
+            KeyboardHook.ReplayGesture(_keyboardHook.Gesture);
         }
     }
 
@@ -130,12 +146,36 @@ internal sealed class HostApplicationContext : ApplicationContext
             _log.Error("Keyboard hook installation failed.", ex);
             if (showError)
             {
-                Notify("Ctrl+V 接管未启动", ex.Message, ToolTipIcon.Error);
+                Notify("快捷键接管未启动", ex.Message, ToolTipIcon.Error);
             }
         }
 
-        _toggleItem.Text = _settings.HookEnabled ? "暂停 Ctrl+V 接管" : "继续 Ctrl+V 接管";
-        _notifyIcon.Text = _settings.HookEnabled ? "FastCopy 粘贴（已启用）" : "FastCopy 粘贴（已暂停）";
+        var gestureText = _keyboardHook.Gesture.ToDisplayString();
+        _toggleItem.Text = _settings.HookEnabled
+            ? $"暂停 {gestureText} 接管"
+            : $"继续 {gestureText} 接管";
+        _hotkeyItem.Text = $"设置快捷键...（{gestureText}）";
+        _notifyIcon.Text = _settings.HookEnabled
+            ? $"FastCopy 粘贴（{gestureText}）"
+            : "FastCopy 粘贴（已暂停）";
+    }
+
+    private void ChooseHotkey(object? sender, EventArgs args)
+    {
+        using var dialog = new HotkeyDialog(_keyboardHook, _settings.Hotkey);
+        if (dialog.ShowDialog() != DialogResult.OK)
+        {
+            return;
+        }
+
+        _settings.Hotkey = dialog.SelectedGesture.Normalize();
+        _keyboardHook.UpdateGesture(_settings.Hotkey);
+        _settingsStore.Save(_settings);
+        ApplyHookSetting(showError: true);
+        Notify(
+            "FastCopy 快捷键已更新",
+            _settings.Hotkey.ToDisplayString(),
+            ToolTipIcon.Info);
     }
 
     private void ChooseFastCopyPath(object? sender, EventArgs args)
@@ -172,6 +212,21 @@ internal sealed class HostApplicationContext : ApplicationContext
 
     private void ExitApplication(object? sender, EventArgs args) => ExitThread();
 
+    private static Icon LoadApplicationIcon()
+    {
+        var executablePath = Application.ExecutablePath;
+        if (!string.IsNullOrWhiteSpace(executablePath))
+        {
+            var icon = Icon.ExtractAssociatedIcon(executablePath);
+            if (icon is not null)
+            {
+                return icon;
+            }
+        }
+
+        return (Icon)SystemIcons.Application.Clone();
+    }
+
     protected override void ExitThreadCore()
     {
         _log.Info("Host stopping.");
@@ -179,6 +234,7 @@ internal sealed class HostApplicationContext : ApplicationContext
         _keyboardHook.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _applicationIcon.Dispose();
         base.ExitThreadCore();
     }
 }

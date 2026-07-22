@@ -10,6 +10,11 @@ internal sealed class AppSettings
 
     [JsonPropertyName("hookEnabled")]
     public bool HookEnabled { get; set; } = true;
+
+    [JsonPropertyName("hotkey")]
+    public HotkeyGesture Hotkey { get; set; } = HotkeyGesture.Default;
+
+    internal void Normalize() => Hotkey = Hotkey?.Normalize() ?? HotkeyGesture.Default;
 }
 
 internal sealed class SettingsStore
@@ -32,8 +37,10 @@ internal sealed class SettingsStore
         {
             if (File.Exists(_settingsPath))
             {
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_settingsPath))
+                var loadedSettings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_settingsPath))
                     ?? new AppSettings();
+                loadedSettings.Normalize();
+                return loadedSettings;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)

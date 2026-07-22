@@ -9,16 +9,41 @@ internal sealed class KeyboardHook : IDisposable
 {
     private readonly NativeMethods.LowLevelKeyboardProc _callback;
     private readonly Func<bool> _tryIntercept;
+    private readonly HashSet<int> _suppressedCaptureModifierKeys = [];
     private nint _hook;
-    private bool _handledVDown;
+    private HotkeyGesture _gesture;
+    private int _handledVirtualKey;
+    private int _capturedMainKey;
+    private HotkeyModifiers _captureModifiers;
+    private Action<HotkeyGesture>? _captureCompleted;
 
-    public KeyboardHook(Func<bool> tryIntercept)
+    public KeyboardHook(HotkeyGesture gesture, Func<bool> tryIntercept)
     {
+        _gesture = gesture.Normalize();
         _tryIntercept = tryIntercept;
         _callback = HookCallback;
     }
 
     public bool Enabled => _hook != nint.Zero;
+    public bool IsCapturing => _captureCompleted is not null;
+    public HotkeyGesture Gesture => _gesture;
+
+    public void UpdateGesture(HotkeyGesture gesture) => _gesture = gesture.Normalize();
+
+    public void BeginCapture(Action<HotkeyGesture> captureCompleted)
+    {
+        ArgumentNullException.ThrowIfNull(captureCompleted);
+        _captureModifiers = GetPressedModifiers();
+        _captureCompleted = captureCompleted;
+        _capturedMainKey = 0;
+    }
+
+    public void CancelCapture()
+    {
+        _captureCompleted = null;
+        _captureModifiers = HotkeyModifiers.None;
+        _capturedMainKey = 0;
+    }
 
     public void Enable()
     {
@@ -34,7 +59,7 @@ internal sealed class KeyboardHook : IDisposable
             0);
         if (_hook == nint.Zero)
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法安装 Ctrl+V 键盘钩子。");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "无法安装快捷键钩子。");
         }
     }
 
@@ -47,7 +72,9 @@ internal sealed class KeyboardHook : IDisposable
 
         NativeMethods.UnhookWindowsHookEx(_hook);
         _hook = nint.Zero;
-        _handledVDown = false;
+        _handledVirtualKey = 0;
+        CancelCapture();
+        _suppressedCaptureModifierKeys.Clear();
     }
 
     public static bool IsExplorerFileView(out nint foregroundWindow, out nint focusedWindow)
@@ -106,26 +133,41 @@ internal sealed class KeyboardHook : IDisposable
         return foundFileView;
     }
 
-    public static void ReplayVKey()
+    public static void ReplayGesture(HotkeyGesture gesture)
     {
-        var controlIsDown = NativeMethods.GetAsyncKeyState(NativeMethods.VkControl) < 0;
-        var inputs = new List<NativeMethods.Input>();
-        if (!controlIsDown)
-        {
-            inputs.Add(CreateKeyInput(NativeMethods.VkControl, keyUp: false));
-        }
-
-        inputs.Add(CreateKeyInput(NativeMethods.VkV, keyUp: false));
-        inputs.Add(CreateKeyInput(NativeMethods.VkV, keyUp: true));
-        if (!controlIsDown)
-        {
-            inputs.Add(CreateKeyInput(NativeMethods.VkControl, keyUp: true));
-        }
-
+        var inputs = CreateReplayInputs(gesture, IsKeyDown);
         NativeMethods.SendInput(
-            (uint)inputs.Count,
-            inputs.ToArray(),
+            (uint)inputs.Length,
+            inputs,
             Marshal.SizeOf<NativeMethods.Input>());
+    }
+
+    internal static NativeMethods.Input[] CreateReplayInputs(
+        HotkeyGesture gesture,
+        Func<int, bool> isKeyDown)
+    {
+        gesture = gesture.Normalize();
+        var inputs = new List<NativeMethods.Input>();
+        var pressedByReplay = new List<int>();
+        foreach (var (modifier, virtualKey) in ModifierInputs)
+        {
+            if (!gesture.Modifiers.HasFlag(modifier) || isKeyDown(virtualKey))
+            {
+                continue;
+            }
+
+            inputs.Add(CreateKeyInput(virtualKey, keyUp: false));
+            pressedByReplay.Add(virtualKey);
+        }
+
+        inputs.Add(CreateKeyInput(gesture.VirtualKey, keyUp: false));
+        inputs.Add(CreateKeyInput(gesture.VirtualKey, keyUp: true));
+        for (var index = pressedByReplay.Count - 1; index >= 0; index--)
+        {
+            inputs.Add(CreateKeyInput(pressedByReplay[index], keyUp: true));
+        }
+
+        return inputs.ToArray();
     }
 
     private static NativeMethods.Input CreateKeyInput(int virtualKey, bool keyUp) =>
@@ -137,7 +179,8 @@ internal sealed class KeyboardHook : IDisposable
                 Keyboard = new NativeMethods.KeyboardInput
                 {
                     VirtualKey = checked((ushort)virtualKey),
-                    Flags = keyUp ? NativeMethods.KeyeventfKeyup : 0,
+                    Flags = (keyUp ? NativeMethods.KeyeventfKeyup : 0) |
+                            (IsExtendedKey(virtualKey) ? NativeMethods.KeyeventfExtendedkey : 0),
                     ExtraInfo = NativeMethods.ReplayExtraInfo
                 }
             }
@@ -152,26 +195,124 @@ internal sealed class KeyboardHook : IDisposable
             var isOwnReplay =
                 (data.Flags & NativeMethods.LlkhfInjected) != 0 &&
                 data.ExtraInfo == NativeMethods.ReplayExtraInfo;
-            if (data.VirtualKeyCode == NativeMethods.VkV && !isOwnReplay)
+            if (!isOwnReplay)
             {
-                if (message is NativeMethods.WmKeyUp or NativeMethods.WmSysKeyUp)
+                var virtualKey = checked((int)data.VirtualKeyCode);
+                var keyDown = message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown;
+                var keyUp = message is NativeMethods.WmKeyUp or NativeMethods.WmSysKeyUp;
+                if ((keyDown || keyUp) && HandleCapture(virtualKey, keyDown, keyUp))
                 {
-                    _handledVDown = false;
+                    return 1;
                 }
-                else if (message is NativeMethods.WmKeyDown or NativeMethods.WmSysKeyDown &&
-                         NativeMethods.GetAsyncKeyState(NativeMethods.VkControl) < 0)
+
+                if (keyUp && _handledVirtualKey == virtualKey)
                 {
-                    if (_handledVDown || _tryIntercept())
-                    {
-                        _handledVDown = true;
-                        return 1;
-                    }
+                    _handledVirtualKey = 0;
+                    return 1;
+                }
+
+                var gesture = _gesture;
+                if (keyDown && gesture.Matches(virtualKey, GetPressedModifiers()) &&
+                    (_handledVirtualKey == virtualKey || _tryIntercept()))
+                {
+                    _handledVirtualKey = virtualKey;
+                    return 1;
                 }
             }
         }
 
         return NativeMethods.CallNextHookEx(_hook, code, wParam, lParam);
     }
+
+    private bool HandleCapture(int virtualKey, bool keyDown, bool keyUp)
+    {
+        var modifier = GetModifier(virtualKey);
+        if (modifier != HotkeyModifiers.None && _captureCompleted is not null)
+        {
+            if (keyDown)
+            {
+                _captureModifiers |= modifier;
+                _suppressedCaptureModifierKeys.Add(virtualKey);
+            }
+            else if (keyUp)
+            {
+                _captureModifiers &= ~modifier;
+                _suppressedCaptureModifierKeys.Remove(virtualKey);
+            }
+
+            return true;
+        }
+
+        if (keyUp && _suppressedCaptureModifierKeys.Remove(virtualKey))
+        {
+            return true;
+        }
+
+        if (keyUp && _capturedMainKey == virtualKey)
+        {
+            _capturedMainKey = 0;
+            return true;
+        }
+
+        if (!keyDown || _captureCompleted is null || HotkeyGesture.IsModifierKey(virtualKey))
+        {
+            return false;
+        }
+
+        var completed = _captureCompleted;
+        var gesture = new HotkeyGesture(virtualKey, _captureModifiers).Normalize();
+        _captureCompleted = null;
+        _captureModifiers = HotkeyModifiers.None;
+        _capturedMainKey = virtualKey;
+        completed(gesture);
+        return true;
+    }
+
+    internal static HotkeyModifiers GetPressedModifiers()
+        => GetPressedModifiers(IsKeyDown);
+
+    internal static HotkeyModifiers GetPressedModifiers(Func<int, bool> isKeyDown)
+    {
+        var modifiers = HotkeyModifiers.None;
+        if (isKeyDown(NativeMethods.VkControl)) modifiers |= HotkeyModifiers.Control;
+        if (isKeyDown(NativeMethods.VkAlt)) modifiers |= HotkeyModifiers.Alt;
+        if (isKeyDown(NativeMethods.VkShift)) modifiers |= HotkeyModifiers.Shift;
+        if (isKeyDown(NativeMethods.VkLeftWindows) ||
+            isKeyDown(NativeMethods.VkRightWindows))
+        {
+            modifiers |= HotkeyModifiers.Windows;
+        }
+
+        return modifiers;
+    }
+
+    private static bool IsKeyDown(int virtualKey) =>
+        NativeMethods.GetAsyncKeyState(virtualKey) < 0;
+
+    private static HotkeyModifiers GetModifier(int virtualKey) => virtualKey switch
+    {
+        NativeMethods.VkShift or NativeMethods.VkLeftShift or NativeMethods.VkRightShift =>
+            HotkeyModifiers.Shift,
+        NativeMethods.VkControl or NativeMethods.VkLeftControl or NativeMethods.VkRightControl =>
+            HotkeyModifiers.Control,
+        NativeMethods.VkAlt or NativeMethods.VkLeftAlt or NativeMethods.VkRightAlt =>
+            HotkeyModifiers.Alt,
+        NativeMethods.VkLeftWindows or NativeMethods.VkRightWindows => HotkeyModifiers.Windows,
+        _ => HotkeyModifiers.None
+    };
+
+    private static bool IsExtendedKey(int virtualKey) => virtualKey is
+        NativeMethods.VkLeftWindows or NativeMethods.VkRightWindows or
+        NativeMethods.VkLeftControl or NativeMethods.VkRightControl or
+        NativeMethods.VkLeftAlt or NativeMethods.VkRightAlt;
+
+    private static readonly (HotkeyModifiers Modifier, int VirtualKey)[] ModifierInputs =
+    [
+        (HotkeyModifiers.Control, NativeMethods.VkControl),
+        (HotkeyModifiers.Alt, NativeMethods.VkAlt),
+        (HotkeyModifiers.Shift, NativeMethods.VkShift),
+        (HotkeyModifiers.Windows, NativeMethods.VkLeftWindows)
+    ];
 
     private static string GetClassName(nint window)
     {

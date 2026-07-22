@@ -11,12 +11,12 @@
   <Identity
     Name="FastCopyPaste"
     Publisher="CN=FastCopyPaste"
-    Version="1.1.1.0"
+    Version="1.2.0.0"
     ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>FastCopy Paste</DisplayName>
     <PublisherDisplayName>FastCopy Paste</PublisherDisplayName>
-    <Description>FastCopy paste command and Explorer Ctrl+V handler</Description>
+    <Description>FastCopy paste command and configurable Explorer hotkey handler</Description>
     <Logo>Assets\StoreLogo.png</Logo>
     <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
   </Properties>
