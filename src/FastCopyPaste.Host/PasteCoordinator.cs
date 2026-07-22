@@ -5,7 +5,7 @@ namespace FastCopyPaste.Host;
 internal enum PasteOrigin
 {
     Hotkey,
-    Menu
+    External
 }
 
 internal sealed record PasteJob(
@@ -47,7 +47,7 @@ internal sealed class PasteCoordinator
     {
         if (!_clipboard.TryCapture(out var snapshot) || snapshot is null)
         {
-            if (origin == PasteOrigin.Menu)
+            if (origin == PasteOrigin.External)
             {
                 _notify("FastCopy 粘贴", "剪贴板中没有文件或目录。", ToolTipIcon.Info);
             }

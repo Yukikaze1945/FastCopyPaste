@@ -69,7 +69,7 @@ internal sealed class HostApplicationContext : ApplicationContext
             {
                 var ownerWindow = NativeMethods.GetForegroundWindow();
                 _uiContext.Post(
-                    _ => _coordinator.TryEnqueue(target, PasteOrigin.Menu, ownerWindow),
+                    _ => _coordinator.TryEnqueue(target, PasteOrigin.External, ownerWindow),
                     null);
             },
             _log);
@@ -79,7 +79,7 @@ internal sealed class HostApplicationContext : ApplicationContext
         {
             var ownerWindow = NativeMethods.GetForegroundWindow();
             _uiContext.Post(
-                _ => _coordinator.TryEnqueue(initialTarget, PasteOrigin.Menu, ownerWindow),
+                _ => _coordinator.TryEnqueue(initialTarget, PasteOrigin.External, ownerWindow),
                 null);
         }
 

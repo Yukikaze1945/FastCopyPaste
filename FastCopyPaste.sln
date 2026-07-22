@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastCopyPaste.Core", "src\F
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastCopyPaste.Host", "src\FastCopyPaste.Host\FastCopyPaste.Host.csproj", "{35661F76-0330-42F4-ADBB-C2BDE79BC45C}"
 EndProject
-Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "FastCopyPaste.Shell", "src\FastCopyPaste.Shell\FastCopyPaste.Shell.vcxproj", "{F02B0A3C-058B-4CA3-B180-32CD8DB15C6A}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastCopyPaste.Tests", "tests\FastCopyPaste.Tests\FastCopyPaste.Tests.csproj", "{7808B80F-4CA6-43CA-AC5B-74D4BE94EAF1}"
 EndProject
 Global
@@ -25,10 +23,6 @@ Global
 		{35661F76-0330-42F4-ADBB-C2BDE79BC45C}.Debug|x64.Build.0 = Debug|x64
 		{35661F76-0330-42F4-ADBB-C2BDE79BC45C}.Release|x64.ActiveCfg = Release|x64
 		{35661F76-0330-42F4-ADBB-C2BDE79BC45C}.Release|x64.Build.0 = Release|x64
-		{F02B0A3C-058B-4CA3-B180-32CD8DB15C6A}.Debug|x64.ActiveCfg = Debug|x64
-		{F02B0A3C-058B-4CA3-B180-32CD8DB15C6A}.Debug|x64.Build.0 = Debug|x64
-		{F02B0A3C-058B-4CA3-B180-32CD8DB15C6A}.Release|x64.ActiveCfg = Release|x64
-		{F02B0A3C-058B-4CA3-B180-32CD8DB15C6A}.Release|x64.Build.0 = Release|x64
 		{7808B80F-4CA6-43CA-AC5B-74D4BE94EAF1}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{7808B80F-4CA6-43CA-AC5B-74D4BE94EAF1}.Debug|x64.Build.0 = Debug|Any CPU
 		{7808B80F-4CA6-43CA-AC5B-74D4BE94EAF1}.Release|x64.ActiveCfg = Release|Any CPU
