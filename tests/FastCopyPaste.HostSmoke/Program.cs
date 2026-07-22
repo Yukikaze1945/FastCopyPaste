@@ -6,6 +6,25 @@ if (args.Length == 1 && string.Equals(args[0], "--hotkey-tests", StringCompariso
     return RunHotkeyTests();
 }
 
+if (args.Length == 1 && string.Equals(args[0], "--hotkey-dialog", StringComparison.OrdinalIgnoreCase))
+{
+    return RunInSta(() =>
+    {
+        System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+        using var hook = new KeyboardHook(HotkeyGesture.Default, () => false);
+        using var dialog = new HotkeyDialog(hook, HotkeyGesture.Default);
+        dialog.ShowInTaskbar = true;
+        return dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK ? 0 : 1;
+    });
+}
+
+if (args.Length == 1 && string.Equals(args[0], "--inspect-hotkey-dialog", StringComparison.OrdinalIgnoreCase))
+{
+    return RunInSta(InspectHotkeyDialog);
+}
+
 if (args.Length == 1 && string.Equals(args[0], "--conflict-dialog", StringComparison.OrdinalIgnoreCase))
 {
     return RunInSta(() =>
@@ -105,6 +124,32 @@ static int InspectConflictDialog()
            labels.All(label => label.Height >= label.PreferredHeight) &&
            buttons.All(button => button.Width >= button.MinimumSize.Width) &&
            list.HorizontalScrollbar ? 0 : 1;
+}
+
+static int InspectHotkeyDialog()
+{
+    using var hook = new KeyboardHook(HotkeyGesture.Default, () => false);
+    using var dialog = new HotkeyDialog(hook, HotkeyGesture.Default);
+    dialog.CreateControl();
+    dialog.PerformLayout();
+
+    var controls = Descendants(dialog).ToList();
+    var labels = controls.OfType<System.Windows.Forms.Label>().ToList();
+    var buttons = controls.OfType<System.Windows.Forms.Button>().ToList();
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        dialog.Text,
+        dialog.TopMost,
+        dialog.ClientSize,
+        selectedGesture = dialog.SelectedGesture.ToDisplayString(),
+        labels = labels.Select(label => new { label.Text, label.Size, label.PreferredSize }),
+        buttons = buttons.Select(button => new { button.Text, button.Size, button.MinimumSize })
+    }, new JsonSerializerOptions { WriteIndented = true }));
+
+    return dialog.TopMost &&
+           dialog.ClientSize.Width >= 620 &&
+           labels.All(label => label.Height >= label.PreferredHeight) &&
+           buttons.All(button => button.Width >= button.MinimumSize.Width) ? 0 : 1;
 }
 
 static int RunHotkeyTests()
